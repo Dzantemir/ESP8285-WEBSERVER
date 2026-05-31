@@ -7,7 +7,7 @@
 *A lightweight ESP8285 local web server that creates its own Wi-Fi hotspot and serves web content to connected clients. DNS-based captive portal automatically opens the main page — no need to type an IP address. Serves static files from SPIFFS or SD card — fully configurable via menuconfig.*
 
 [![ESP8266 RTOS SDK](https://img.shields.io/badge/ESP8266__RTOS__SDK-v3.4-orange?style=flat-square&logo=espressif)](https://github.com/espressif/esp8266_rtos_sdk)
-[![Platform](https://img.shields.io/badge/Platform-ESP8285-blue?style=flat-square)](https://www.espressif.com/en/products/socs/esp8285)
+[![Platform](https://img.shields.io/badge/Platform-ESP8285%20%2F%20ESP8266-blue?style=flat-square)](https://www.espressif.com/en/products/socs/esp8285)
 [![Build Tool](https://img.shields.io/badge/Build-ESP8266__IDF-teal?style=flat-square&logo=visualstudiocode)](https://github.com/Dzantemir/ESP8266-IDF)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
@@ -64,6 +64,8 @@
 |:----------|:--------|
 | **MCU** | ESP8285 (ESP-01M or equivalent) |
 | **Flash** | 1 MB — SPI, DOUT, 80 MHz |
+
+> 💡 **ESP8266 support:** This project also works on the original ESP8266. Adjust flash size, SPI mode, and other settings via `idf.py menuconfig` to match your board.
 | **Action Output** | GPIO4 — buzzer (active/passive PWM), or relay / LED / other |
 | **SD Card** | Optional — HSPI: MOSI=GPIO13, MISO=GPIO12, SCLK=GPIO14, CS=GPIO5 |
 | **Battery** | Optional — voltage divider R1=100k / R2=33k → ADC (TOUT) |
