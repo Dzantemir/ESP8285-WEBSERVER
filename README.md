@@ -224,7 +224,7 @@ All settings are available via `idf.py menuconfig` → **SMART AP Configuration*
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| SSID | `123` | Access Point name |
+| SSID | `WIFI` | Access Point name |
 | Auth mode | OPEN | OPEN / WPA2_PSK / WPA_WPA2_PSK |
 | Password | — | For WPA2, min 8 characters |
 | SSID hidden | 0 | 0 = visible, 1 = hidden |
