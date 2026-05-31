@@ -226,7 +226,7 @@ All settings are available via `idf.py menuconfig` → **SMART AP Configuration*
 |-----------|---------|-------------|
 | SSID | `WIFI` | Access Point name |
 | Auth mode | OPEN | OPEN / WPA2_PSK / WPA_WPA2_PSK |
-| Password | — | For WPA2, min 8 characters |
+| Password | `12345678` | For WPA2, 8–64 characters (ignored in OPEN mode) |
 | SSID hidden | 0 | 0 = visible, 1 = hidden |
 | Max connections | 4 | Max simultaneous clients (1–8) |
 | Beacon interval | 250 ms | Beacon frame interval |
