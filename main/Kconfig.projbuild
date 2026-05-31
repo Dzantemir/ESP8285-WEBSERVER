@@ -1,0 +1,711 @@
+menu "SMART AP Configuration"
+
+    # ========================================================================
+    # Wi-Fi
+    # ========================================================================
+    menu "Wi-Fi"
+
+        config SMART_AP_WIFI_SSID
+            string "AP SSID"
+            default "WIFI"
+            help
+                Access Point SSID. Length 1-32 bytes.
+                Visible to clients during Wi-Fi scan (unless SSID hidden).
+
+        choice SMART_AP_WIFI_AUTH_MODE
+            prompt "AP authentication mode"
+            default SMART_AP_WIFI_AUTH_OPEN
+            help
+                Wi-Fi Access Point authentication method.
+                OPEN — no password, anyone can connect.
+                WPA2_PSK — WPA2-Personal (recommended, most secure).
+                WPA_WPA2_PSK — WPA/WPA2-Personal (compatibility mode,
+                    supports both WPA and WPA2 clients).
+
+            config SMART_AP_WIFI_AUTH_OPEN
+                bool "OPEN (no password)"
+            config SMART_AP_WIFI_AUTH_WPA2_PSK
+                bool "WPA2_PSK"
+            config SMART_AP_WIFI_AUTH_WPA_WPA2_PSK
+                bool "WPA_WPA2_PSK"
+        endchoice
+
+        config SMART_AP_WIFI_PASSWORD
+            string "AP password"
+            default ""
+            depends on !SMART_AP_WIFI_AUTH_OPEN
+            help
+                Password for the Wi-Fi Access Point.
+                Required when auth mode is WPA2_PSK or WPA_WPA2_PSK.
+                Length: 8-64 bytes. Must be at least 8 characters.
+                Ignored when auth mode is OPEN.
+
+        config SMART_AP_WIFI_SSID_HIDDEN
+            int "Hide SSID (1=hidden, 0=visible)"
+            range 0 1
+            default 0
+            help
+                Whether to hide the Access Point SSID from Wi-Fi scans.
+                0 = SSID visible (default, clients can find the AP).
+                1 = SSID hidden (clients must know the SSID to connect).
+
+                NOTE: Uses int, not bool, so value 0 is correctly
+                passed through #ifndef guards.
+
+        config SMART_AP_MAX_CONNECTIONS
+            int "Max STA connections"
+            range 1 8
+            default 4
+            help
+                Maximum number of simultaneously connected clients.
+                ESP8266 hardware supports up to 8 STAs.
+
+        config SMART_AP_BEACON_INTERVAL
+            int "Beacon interval (ms)"
+            range 20 65535
+            default 250
+            help
+                Beacon frame interval in milliseconds.
+                Lower = faster discovery, more airtime.
+                Standard: 100 ms. 250 ms is a compromise for ESP8266.
+
+        config SMART_AP_COUNTRY_CODE
+            string "Country code"
+            default "RU"
+            help
+                Two-letter country code (ISO 3166-1 alpha-2).
+                Affects allowed channel list and TX power.
+
+        config SMART_AP_MAX_CHANNELS
+            int "Max Wi-Fi channel number"
+            range 1 14
+            default 13
+            help
+                Maximum channel number for scanning and selection.
+                13 = Europe/Russia, 11 = USA, 14 = Japan.
+
+                NOTE: TX power is configured separately in
+                menuconfig -> Component config -> PHY -> Max WiFi TX power (dBm).
+                No need to set it here.
+
+    endmenu
+
+    # ========================================================================
+    # AP Network
+    # ========================================================================
+    menu "AP Network"
+
+        config SMART_AP_IP_ADDR
+            string "AP IP address"
+            default "192.168.4.1"
+            help
+                Static IP address for the AP interface.
+                This is the address clients connect to (captive portal).
+                Configured in WIFI_EVENT_AP_START handler.
+
+        config SMART_AP_NETMASK
+            string "AP subnet mask"
+            default "255.255.255.0"
+            help
+                Subnet mask for the AP network.
+
+        config SMART_AP_DHCP_LEASE_START
+            string "DHCP lease start IP"
+            default "192.168.4.2"
+            help
+                First IP address in the DHCP lease pool.
+
+        config SMART_AP_DHCP_LEASE_END
+            string "DHCP lease end IP"
+            default "192.168.4.10"
+            help
+                Last IP address in the DHCP lease pool.
+                Max 4 clients by default — 9 addresses is plenty.
+
+    endmenu
+
+    # ========================================================================
+    # Channel Scanning
+    # ========================================================================
+    menu "Channel Scanning"
+
+        config SMART_AP_SCAN_INTERVAL_MIN_HOUR
+            int "Min scan interval (hours)"
+            range 1 168
+            default 7
+            help
+                Minimum delay between channel scans in hours.
+                The AP waits a random time between min and max before
+                scanning for the best channel again.
+                Must be <= max interval.
+
+        config SMART_AP_SCAN_INTERVAL_MAX_HOUR
+            int "Max scan interval (hours)"
+            range 1 168
+            default 21
+            help
+                Maximum delay between channel scans in hours.
+                Must be >= min interval.
+
+        config SMART_AP_WIFI_SCAN_TIMEOUT_SEC
+            int "Wi-Fi scan timeout (seconds)"
+            range 5 300
+            default 60
+            help
+                Timeout for Wi-Fi scan completion.
+                On timeout a random channel is selected.
+
+        config SMART_AP_SCAN_SHOW_HIDDEN
+            int "Scan hidden networks (1=yes, 0=no)"
+            range 0 1
+            default 1
+            help
+                Whether to include hidden SSIDs in Wi-Fi scan.
+                Hidden networks affect channel scoring but slow down scanning.
+                1 = include hidden, 0 = skip hidden.
+
+                NOTE: Uses int, not bool, so value 0 is correctly
+                passed through #ifndef guards.
+
+    endmenu
+
+    # ========================================================================
+    # DNS Server
+    # ========================================================================
+    menu "DNS Server"
+
+        config SMART_AP_DNS_PORT
+            int "DNS port"
+            range 1 65535
+            default 53
+            help
+                UDP port for the DNS server. Standard: 53.
+                Change only if the port is occupied by another service.
+
+        config SMART_AP_DNS_TASK_STACK_SIZE
+            int "DNS task stack size (bytes)"
+            range 1024 8192
+            default 2048
+            help
+                Stack size for the DNS server task in bytes.
+                Increase if adding complex request processing logic.
+
+        config SMART_AP_DNS_TASK_PRIORITY
+            int "DNS task priority"
+            range 1 10
+            default 4
+            help
+                FreeRTOS task priority for DNS server.
+                Should be higher than orchestrator for fast response.
+
+        config SMART_AP_DNS_RATE_LIMIT
+            int "DNS rate limit (packets/sec)"
+            range 5 500
+            default 50
+            help
+                Maximum valid DNS packets per second.
+                Rate is counted after filtering garbage (QR, OPCODE, QDCOUNT).
+                Excess packets are silently dropped.
+
+        config SMART_AP_DNS_RECV_TIMEOUT_SEC
+            int "DNS recv timeout (seconds)"
+            range 1 30
+            default 2
+            help
+                recvfrom() timeout in the DNS task.
+                Determines reaction delay to stop (clearing DNS_RUNNING_BIT).
+
+        config SMART_AP_DNS_STOP_TIMEOUT_SEC
+            int "DNS stop timeout (seconds)"
+            range 2 60
+            default 5
+            help
+                Timeout waiting for DNS task to finish on stop.
+                If task does not exit -> esp_restart() (hung LwIP).
+
+        config SMART_AP_DNS_RX_BUFFER_SIZE
+            int "DNS RX buffer size (bytes)"
+            range 512 4096
+            default 1024
+            help
+                DNS packet receive buffer size.
+                512 bytes is the RFC 1035 minimum. 1024 adds margin for EDNS.
+
+    endmenu
+
+    # ========================================================================
+    # HTTP Server
+    # ========================================================================
+    menu "HTTP Server"
+
+        config SMART_AP_HTTPD_TASK_STACK
+            int "AP HTTPD task stack size (bytes)"
+            range 1024 8192
+            default 4096
+            help
+                Web server task stack size (bytes).
+
+        config SMART_AP_HTTPD_TASK_PRIORITY
+            int "HTTPD task priority"
+            range 1 10
+            default 4
+            help
+                Web server task priority (internal httpd).
+                Should be high enough for responsive captive portal.
+
+        config SMART_AP_HTTPD_MAX_OPEN_SOCKETS
+            int "Max open sockets"
+            range 1 16
+            default 12
+            help
+                Maximum simultaneously open sockets for HTTP server.
+                Limited by LwIP resources on ESP8266. More = more RAM.
+
+        config SMART_AP_HTTPD_SCRATCH_BUFSIZE
+            int "Scratch buffer size (bytes)"
+            range 256 4096
+            default 1024
+            help
+                Chunk buffer size for sending files.
+                Larger = faster transfer of big files, more RAM.
+
+        config SMART_AP_HTTP_YIELD_EVERY_N_CHUNKS
+            int "Yield CPU every N chunks"
+            range 1 64
+            default 16
+            help
+                After sending this many file chunks, the server task
+                yields CPU to other tasks. Prevents watchdog triggers
+                on large file transfers.
+
+        config SMART_AP_HTTP_YIELD_DELAY_MS
+            int "Yield delay (ms)"
+            range 1 100
+            default 25
+            help
+                Duration of vTaskDelay when yielding CPU during file transfer.
+                Higher = more responsive system, slower transfers.
+
+    endmenu
+
+    # ========================================================================
+    # Storage
+    # ========================================================================
+    menu "Storage"
+
+        choice SMART_AP_STORAGE_MODE
+            prompt "Storage mode"
+            default SMART_AP_STORAGE_SPIFFS
+            help
+                Select file storage backend for the captive portal.
+                SPIFFS — internal flash, small but always available.
+                SD card — external SD via SPI (HSPI), large capacity.
+                SPIFFS + SD — both mounted, SD for large files,
+                    SPIFFS for captive portal HTML.
+
+            config SMART_AP_STORAGE_SPIFFS
+                bool "SPIFFS only"
+            config SMART_AP_STORAGE_SD
+                bool "SD card only"
+            config SMART_AP_STORAGE_SPIFFS_SD
+                bool "SPIFFS + SD card"
+        endchoice
+
+        # --- SPIFFS settings ---
+
+        config SMART_AP_SPIFFS_MAX_FILES
+            int "Max SPIFFS files for URI registration"
+            range 5 50
+            default 20
+            depends on SMART_AP_STORAGE_SPIFFS || SMART_AP_STORAGE_SPIFFS_SD
+            help
+                Maximum number of SPIFFS files for URI registration.
+                Determines max_uri_handlers = MAX_FILES + SD_FILES + 10.
+
+        config SMART_AP_SPIFFS_MAX_OPEN_FILES
+            int "Max simultaneously open SPIFFS files"
+            range 3 30
+            default 15
+            depends on SMART_AP_STORAGE_SPIFFS || SMART_AP_STORAGE_SPIFFS_SD
+            help
+                Maximum simultaneously open SPIFFS files.
+                esp_spiffs configuration limit.
+
+        config SMART_AP_MAX_PATH_LEN
+            int "Max file path length"
+            range 64 512
+            default 128
+            help
+                Maximum file path length in VFS.
+                Including /spiffs/ or /sdcard/ prefix.
+
+        config SMART_AP_SPIFFS_BASE_PATH
+            string "SPIFFS mount point"
+            default "/spiffs"
+            depends on SMART_AP_STORAGE_SPIFFS || SMART_AP_STORAGE_SPIFFS_SD
+            help
+                Virtual filesystem path where SPIFFS is mounted.
+                Captive portal HTML is served from this directory.
+
+        config SMART_AP_SPIFFS_PARTITION_LABEL
+            string "SPIFFS partition label"
+            default "storage"
+            depends on SMART_AP_STORAGE_SPIFFS || SMART_AP_STORAGE_SPIFFS_SD
+            help
+                Partition table label for the SPIFFS partition.
+                Must match the label in your partition table CSV.
+
+        # --- SD card settings ---
+
+        config SMART_AP_SD_CS_GPIO
+            int "SD card CS GPIO"
+            default 5
+            depends on SMART_AP_STORAGE_SD || SMART_AP_STORAGE_SPIFFS_SD
+            help
+                GPIO number for SD card Chip Select (CS).
+                HSPI data pins are fixed: MOSI=GPIO13, MISO=GPIO12, SCLK=GPIO14.
+                Only CS is configurable.
+                Recommended: GPIO5 or GPIO15.
+                WARNING: Do NOT use GPIO12/13/14 (HSPI data pins).
+                Do NOT use GPIO0/2 (boot-strapping pins).
+
+        config SMART_AP_SD_BASE_PATH
+            string "SD card mount point"
+            default "/sdcard"
+            depends on SMART_AP_STORAGE_SD || SMART_AP_STORAGE_SPIFFS_SD
+            help
+                Virtual filesystem path where SD card is mounted.
+                Large files (audio, video) are served from this directory.
+
+        config SMART_AP_SD_MAX_FILES
+            int "Max SD files for URI registration"
+            range 5 100
+            default 30
+            depends on SMART_AP_STORAGE_SD || SMART_AP_STORAGE_SPIFFS_SD
+            help
+                Maximum number of SD card files for URI registration.
+                Determines max_uri_handlers = SPIFFS_FILES + SD_FILES + 10.
+
+        config SMART_AP_SD_MAX_OPEN_FILES
+            int "Max simultaneously open SD files"
+            range 1 20
+            default 5
+            depends on SMART_AP_STORAGE_SD || SMART_AP_STORAGE_SPIFFS_SD
+            help
+                Maximum simultaneously open files on SD card.
+                FatFS configuration limit. More = more RAM.
+
+        config SMART_AP_SD_PASSWORD
+            string "SD card unlock password"
+            default ""
+            depends on SMART_AP_STORAGE_SD || SMART_AP_STORAGE_SPIFFS_SD
+            help
+                Password for unlocking a password-protected SD card.
+                If the SD card is locked (password set on the card),
+                this password will be used to unlock it before mounting.
+                If empty, no unlock attempt is made (card must be unlocked/open).
+                Maximum length: 16 bytes (SD specification limit).
+
+                Logic: on startup, the SD card is checked — if it is
+                password-locked and this field is non-empty, the card
+                is unlocked using this password. If the card is not
+                locked, no unlock is performed.
+
+    endmenu
+
+    # ========================================================================
+    # Reset Timer
+    # ========================================================================
+    menu "Reset Timer"
+
+        config SMART_AP_RESET_TIME_DAY_MIN
+            int "Reset day range start (1-31)"
+            range 1 31
+            default 1
+            help
+                Start of the day-of-month range for random reset day selection.
+                Must be <= max day.
+
+        config SMART_AP_RESET_TIME_DAY_MAX
+            int "Reset day range end (1-31)"
+            range 1 31
+            default 31
+            help
+                End of the day-of-month range for random reset day selection.
+                Must be >= min day.
+
+    endmenu
+
+    # ========================================================================
+    # Battery & Power
+    # ========================================================================
+    menu "Battery & Power"
+
+        config SMART_AP_BATTERY_CONTROL_ENABLED
+            bool "Enable battery charge control"
+            default n
+            help
+                Enable battery voltage monitoring and charge control.
+                When enabled, ADC is initialized, battery voltage is checked
+                on startup and periodically during operation. If battery is
+                critically low, device enters deep sleep.
+                When disabled, all battery monitoring code is excluded:
+                - No ADC initialization
+                - No startup battery check
+                - No battery_monitor_task created
+                Deep sleep functions (used by reset_timer_task) remain available.
+
+        config SMART_AP_BATT_CRITICAL_MV
+            int "Critical battery voltage (mV)"
+            depends on SMART_AP_BATTERY_CONTROL_ENABLED
+            range 3000 4200
+            default 3700
+            help
+                Critical battery voltage threshold in millivolts.
+                Below this value -> deep sleep.
+
+        config SMART_AP_BATT_START_MV
+            int "Startup battery voltage (mV)"
+            depends on SMART_AP_BATTERY_CONTROL_ENABLED
+            range 3000 4200
+            default 3900
+            help
+                Minimum battery voltage for normal startup.
+                Used for initial check on boot.
+
+        config SMART_AP_BATT_BAD_MV
+            int "Invalid battery reading (mV)"
+            depends on SMART_AP_BATTERY_CONTROL_ENABLED
+            range 0 2600
+            default 2500
+            help
+                Threshold below which ADC reading is considered erroneous
+                (no battery, broken divider). Does NOT trigger deep sleep.
+
+        config SMART_AP_VOLTAGE_DIVIDER_RATIO
+            int "Voltage divider ratio (x1)"
+            depends on SMART_AP_BATTERY_CONTROL_ENABLED
+            range 1000 20000
+            default 5711
+            help
+                Voltage divider coefficient. Formula:
+                V_batt = (ADC_raw x RATIO) / 1024.
+                For R1=100k R2=33k divider -> 5711.
+
+        config SMART_AP_SLEEP_TIME_MIN
+            int "Deep sleep duration (minutes)"
+            depends on SMART_AP_BATTERY_CONTROL_ENABLED
+            range 1 1440
+            default 30
+            help
+                Deep sleep duration on critical battery (minutes).
+                1440 = 24 hours.
+
+        config SMART_AP_ACTIVE_CHECK_MIN
+            int "Battery check interval (minutes)"
+            depends on SMART_AP_BATTERY_CONTROL_ENABLED
+            range 1 60
+            default 1
+            help
+                Battery voltage check interval during active operation (minutes).
+
+        config SMART_AP_ADC_SAMPLES
+            int "ADC sample count"
+            depends on SMART_AP_BATTERY_CONTROL_ENABLED
+            range 1 50
+            default 15
+            help
+                Number of ADC readings to average for battery voltage.
+                More samples = more stable reading, slower measurement.
+
+        config SMART_AP_ADC_SAMPLE_DELAY_MS
+            int "ADC sample interval (ms)"
+            depends on SMART_AP_BATTERY_CONTROL_ENABLED
+            range 10 200
+            default 50
+            help
+                Delay between consecutive ADC samples in milliseconds.
+                Allows ADC to stabilize between readings.
+
+        config SMART_AP_RESET_CHECK_INTERVAL_SEC
+            int "Reset timer check interval (seconds)"
+            range 5 300
+            default 30
+            help
+                How often the reset timer task checks if scheduled
+                reset time has been reached. Shorter = more precise,
+                more frequent wakeups.
+
+    endmenu
+
+    # ========================================================================
+    # Orchestrator & Shutdown
+    # ========================================================================
+    menu "Orchestrator & Shutdown"
+
+        config SMART_AP_SERVER_CMD_QUEUE_SIZE
+            int "Server command queue size"
+            range 4 64
+            default 16
+            help
+                Size of the server orchestrator command queue.
+                Stores START/STOP/SHUTDOWN/DNS_ERROR commands.
+                Overflow -> command dropped with warning.
+
+        config SMART_AP_ORCHESTRATOR_TASK_STACK
+            int "Orchestrator task stack size (bytes)"
+            range 1024 8192
+            default 2048
+            help
+                Stack size for the server orchestrator task.
+                Orchestrator calls start/stop DNS and HTTP - needs margin.
+
+        config SMART_AP_ORCHESTRATOR_TASK_PRIORITY
+            int "Orchestrator task priority"
+            range 1 10
+            default 3
+            help
+                Orchestrator task priority.
+                Should be lower than DNS and HTTPD task priorities.
+
+        config SMART_AP_SHUTDOWN_GRACE_SEC
+            int "Shutdown grace period (seconds)"
+            range 10 300
+            default 60
+            help
+                Timeout for all tasks to finish during graceful shutdown.
+                If tasks don't exit -> critical ones (orchestrator, AP task)
+                are checked and if hung -> esp_restart().
+
+    endmenu
+
+    # ========================================================================
+    # Task Stacks & Priorities
+    # ========================================================================
+    menu "Task Stacks & Priorities"
+
+        config SMART_AP_AP_TASK_STACK
+            int "AP task stack size (bytes)"
+            range 1024 8192
+            default 2048
+            help
+                Stack size for smart_ap_task (main AP task).
+
+        config SMART_AP_AP_TASK_PRIORITY
+            int "AP task priority"
+            range 1 10
+            default 1
+            help
+                Priority for smart_ap_task. Low priority - background task.
+
+        config SMART_AP_BEEP_TASK_STACK
+            int "Beep task stack size (bytes)"
+            range 512 4096
+            default 1024
+            help
+                Stack size for the beeper task.
+
+        config SMART_AP_BEEP_TASK_PRIORITY
+            int "Beep task priority"
+            range 1 10
+            default 2
+            help
+                Priority for the beeper task.
+
+        config SMART_AP_BATT_TASK_STACK
+            int "Battery monitor task stack size (bytes)"
+            depends on SMART_AP_BATTERY_CONTROL_ENABLED
+            range 512 4096
+            default 1024
+            help
+                Stack size for the battery monitor task.
+
+        config SMART_AP_BATT_TASK_PRIORITY
+            int "Battery monitor task priority"
+            depends on SMART_AP_BATTERY_CONTROL_ENABLED
+            range 1 10
+            default 3
+            help
+                Priority for the battery monitor task.
+
+        config SMART_AP_RESET_TASK_STACK
+            int "Reset timer task stack size (bytes)"
+            range 512 4096
+            default 1024
+            help
+                Stack size for the reset timer task.
+
+        config SMART_AP_RESET_TASK_PRIORITY
+            int "Reset timer task priority"
+            range 1 10
+            default 1
+            help
+                Priority for the reset timer task.
+
+    endmenu
+
+    # ========================================================================
+    # Buzzer
+    # ========================================================================
+    menu "Buzzer"
+
+        config SMART_AP_BUZZER_ENABLED
+            bool "Enable buzzer"
+            default y
+            help
+                Enable buzzer support.
+                If disabled, all buzzer code is excluded by the compiler
+                and BEEP_TOTAL_SEC = 0 (instant return from beep_task).
+
+        config SMART_AP_BUZZER_PASSIVE
+            bool "Passive buzzer (PWM)"
+            depends on SMART_AP_BUZZER_ENABLED
+            default y
+            help
+                Passive buzzer requires PWM signal to generate sound.
+                Active buzzer sounds when DC voltage is applied.
+                If enabled, hardware PWM (Timer1) is used,
+                CPU is completely free.
+
+        config SMART_AP_BUZZER_GPIO
+            int "Buzzer GPIO number"
+            depends on SMART_AP_BUZZER_ENABLED
+            range 0 16
+            default 4
+            help
+                GPIO number connected to the buzzer.
+                GPIO4 on ESP-01M is on the TX pin (switchable).
+
+        config SMART_AP_BUZZER_ACTIVE_HIGH
+            int "Buzzer active level (1=HIGH, 0=LOW)"
+            depends on SMART_AP_BUZZER_ENABLED
+            range 0 1
+            default 1
+            help
+                1 = buzzer_on() sets GPIO=1, buzzer_off() sets GPIO=0 (active high).
+                0 = inverted logic (PNP transistor, active low).
+
+                NOTE: Uses int, not bool, so value 0 is correctly
+                passed through #ifndef guards in main.c.
+
+        config SMART_AP_BUZZER_FREQ_HZ
+            int "Passive buzzer frequency (Hz)"
+            depends on SMART_AP_BUZZER_PASSIVE
+            range 100 20000
+            default 2000
+            help
+                PWM frequency for passive buzzer in Hz.
+                Typical values: 2000-4000 Hz.
+
+        config SMART_AP_BEEP_TOTAL_SEC
+            int "Beep duration (seconds)"
+            depends on SMART_AP_BUZZER_ENABLED
+            range 1 300
+            default 45
+            help
+                Total beeping duration in seconds.
+                Pattern: 3x(0.5s on + 0.5s off) + 3s pause, repeat.
+
+    endmenu
+
+endmenu

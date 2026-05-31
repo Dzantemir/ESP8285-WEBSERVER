@@ -1,0 +1,122 @@
+menu "SD SPI Driver"
+
+    # ========================================================================
+    # CRC & Data Integrity
+    # ========================================================================
+    config SD_SPI_CRC16_VERIFY
+        bool "Enable CRC16 verification on read"
+        default n
+        help
+            Verify CRC16 checksum on every data block read from SD card.
+            When enabled, the driver computes CRC16 locally and compares
+            with the value sent by the card. Mismatch → read error.
+
+            Also enables CMD59 (CRC_ON_OFF) during initialization, telling
+            the card to validate CRC on incoming commands and data.
+
+            Disabled by default: most SPI SD card implementations skip CRC
+            for performance (CRC is mandatory only in SD bus mode).
+            Enable for reliability in electrically noisy environments.
+
+            Note: CRC16 is ALWAYS computed and sent on WRITE regardless
+            of this option — required for correct operation with all cards.
+
+    # ========================================================================
+    # SPI Bus Speed
+    # ========================================================================
+    choice SD_SPI_DATA_SPEED
+        prompt "SPI data transfer clock"
+        default SD_SPI_SPEED_10MHZ
+        help
+            SPI clock frequency for data transfers (after initialization).
+            Initialization always uses ~400 kHz (SD specification).
+
+            Higher speeds may fail with:
+              - Long wires between ESP8266 and SD card
+              - Poor quality SD cards
+              - Breadboard connections (parasitic capacitance)
+
+            If you get read/write errors at high speed, try lowering.
+
+        config SD_SPI_SPEED_20MHZ
+            bool "20 MHz (80MHz / 4)"
+        config SD_SPI_SPEED_10MHZ
+            bool "10 MHz (80MHz / 8)"
+        config SD_SPI_SPEED_5MHZ
+            bool "5 MHz (80MHz / 16)"
+        config SD_SPI_SPEED_2MHZ
+            bool "2 MHz (80MHz / 40)"
+    endchoice
+
+    # ========================================================================
+    # Timeouts
+    # ========================================================================
+    config SD_SPI_MUTEX_TIMEOUT_MS
+        int "Mutex timeout (ms)"
+        range 500 10000
+        default 1500
+        help
+            Maximum time to wait for the SPI bus mutex.
+            If another task holds the mutex longer than this, the operation
+            fails with ESP_ERR_TIMEOUT / RES_ERROR.
+
+            Should be longer than the longest single SPI operation
+            (typically a multi-block write or CTRL_TRIM erase).
+            Default 1500 ms is safe for most use cases.
+
+    config SD_SPI_CMD0_RETRIES
+        int "CMD0 (GO_IDLE_STATE) retry count"
+        range 1 50
+        default 10
+        help
+            Number of CMD0 attempts during card initialization.
+            Some SD cards require multiple attempts to transition
+            from SD bus mode to SPI mode, especially after hot-plug.
+            Each attempt sends ≥80 dummy clocks (CS high) then CMD0.
+
+    config SD_SPI_INIT_TIMEOUT_MS
+        int "Card initialization timeout (ms)"
+        range 500 10000
+        default 1000
+        help
+            Timeout for ACMD41/CMD1 initialization loop.
+            The card must respond within this time to complete
+            the initialization handshake.
+            Cheap or worn cards may need more time.
+
+    config SD_SPI_WAIT_READY_MS
+        int "Default wait_ready timeout (ms)"
+        range 100 5000
+        default 500
+        help
+            Default timeout for wait_ready() — how long to wait for
+            the card to become ready after a command.
+            Used by select_card() and xmit_datablock().
+
+    config SD_SPI_READ_TOKEN_TIMEOUT_MS
+        int "Read data token timeout (ms)"
+        range 50 2000
+        default 200
+        help
+            Timeout waiting for the data token (0xFE) when reading
+            a block from the card. Shorter = faster failure detection.
+
+    config SD_SPI_TRIM_TIMEOUT_MS
+        int "CTRL_TRIM (erase) timeout (ms)"
+        range 5000 120000
+        default 30000
+        help
+            Timeout for the erase operation (CMD38).
+            Erasing large areas can take tens of seconds.
+            30000 ms (30 sec) is typical for full-card erase.
+
+    config SD_SPI_CMD42_TIMEOUT_MS
+        int "CMD42 (lock/unlock) timeout (ms)"
+        range 1000 10000
+        default 3000
+        help
+            Timeout for CMD42 password operations (lock, unlock,
+            set password, clear password, force erase).
+            SD specification requires up to 3 seconds.
+
+endmenu

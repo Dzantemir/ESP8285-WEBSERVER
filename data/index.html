@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <link rel="icon" href="/spiffs/favicon.ico" type="image/x-icon">
+    <title>Брелок</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            height: 100%
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 16px
+        }
+
+        .card {
+            background: #16213e;
+            border-radius: 16px;
+            padding: 32px 24px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, .3)
+        }
+
+        .icon {
+            font-size: 56px;
+            margin-bottom: 12px
+        }
+
+        h1 {
+            font-size: 22px;
+            margin-bottom: 6px;
+            color: #e94560
+        }
+
+        p {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 20px;
+            line-height: 1.5
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 16px 36px;
+            font-size: 18px;
+            background: #e94560;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background .2s, transform .1s;
+            min-height: 44px;
+            min-width: 200px;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        .btn:hover {
+            background: #c73652
+        }
+
+        .btn:active {
+            transform: scale(.95)
+        }
+
+        .btn-busy {
+            background: #f39c12;
+            pointer-events: none
+        }
+
+        .msg {
+            margin-top: 14px;
+            font-size: 15px;
+            min-height: 22px
+        }
+
+        .msg-ok {
+            color: #2ecc71
+        }
+
+        .msg-busy {
+            color: #f39c12
+        }
+
+        .msg-err {
+            color: #e74c3c
+        }
+
+        footer {
+            margin-top: 20px;
+            font-size: 11px;
+            color: #444
+        }
+
+        @media(min-width:768px) {
+            .card {
+                padding: 48px 40px;
+                max-width: 480px
+            }
+
+            .icon {
+                font-size: 72px;
+                margin-bottom: 16px
+            }
+
+            h1 {
+                font-size: 28px;
+                margin-bottom: 10px
+            }
+
+            p {
+                font-size: 16px;
+                margin-bottom: 28px
+            }
+
+            .btn {
+                padding: 20px 48px;
+                font-size: 22px;
+                min-width: 260px
+            }
+
+            .msg {
+                margin-top: 18px;
+                font-size: 17px
+            }
+
+            footer {
+                font-size: 12px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="icon">🔑</div>
+        <h1>Брелок-визитка</h1>
+        <p>Подключитесь к Wi-Fi и нажмите кнопку,<br>чтобы брелок подал сигнал</p>
+        <button class="btn" id="btn" onclick="beep()">🔊 Найти брелок</button>
+        <noscript>
+            <form action="/beep" method="POST" style="display:inline">
+                <button type="submit" class="btn">🔊 Найти брелок</button>
+            </form>
+        </noscript>
+        <div class="msg" id="msg"></div>
+    </div>
+    <script>
+        var b = document.getElementById('btn'), m = document.getElementById('msg');
+        function beep() {
+            b.className = 'btn btn-busy'; b.textContent = '⏳ Сигнал...'; m.className = 'msg';
+            fetch('/beep',{method:'POST',headers:{'X-Requested-With':'fetch'}}).then(function (r) { return r.json() }).then(function (j) {
+                if (j.status === 'started') { m.textContent = '✅ Пищит 45 сек!'; m.className = 'msg msg-ok' }
+                else { m.textContent = '⚠️ Уже пищит'; m.className = 'msg msg-busy' }
+                b.textContent = '🔊 Найти брелок'; b.className = 'btn'; setTimeout(function () { m.textContent = ''; m.className = 'msg' }, 5000)
+            }).catch(function () { m.textContent = '❌ Ошибка'; m.className = 'msg msg-err'; b.textContent = '🔊 Найти брелок'; b.className = 'btn'; setTimeout(function () { m.textContent = ''; m.className = 'msg' }, 5000) })
+        }
+    </script>
+</body>
+
+</html>
