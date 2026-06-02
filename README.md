@@ -29,6 +29,7 @@
 | 🔄 | **Reset Timer** | Random reboot every 1–31 days to free resources |
 | 🛑 | **Graceful Shutdown** | Clean termination of all FreeRTOS tasks before reboot or sleep |
 | ⚙️ | **Orchestrator** | Serializes server start/stop, race condition protection |
+| 🛡️ | **Custom HTTP Server** | Patched `esp_http_server` component with wildcard URI, `HTTP_ANY`, custom error handlers, inline helpers |
 
 ---
 
@@ -44,17 +45,22 @@
        │  (captive portal)    │  │  HTTP Server   │──│── serves files from SPIFFS/SD
        ▼                      │  └────────────────┘  │
   ┌───────────────────┐      │  ┌────────────────┐  │
-  │  🌐 index.html    │◄─────│  │  /beep handler │──│── POST → GPIO action (buzzer / relay / LED / …)
+  │  🌐 index.html    │◄─────│  │  /* handler    │──│── wildcard: all methods, all paths
   │  + any static     │      │  └────────────────┘  │
-  │  files from       │      └──────────────────────┘
-  │  SPIFFS or SD     │
-  └───────────────────┘
+  │  files from       │      │  ┌────────────────┐  │
+  │  SPIFFS or SD     │      │  │  /beep handler │──│── POST → GPIO action (buzzer / relay / LED / …)
+  └───────────────────┘      │  ┌────────────────┐  │
+                             │  │  Error handlers│──│── 404/405 → 302 redirect to /
+                             │  └────────────────┘  │
+                             └──────────────────────┘
 ```
 
 1. **ESP8285 boots** → scans for the best Wi-Fi channel → starts AP (APSTA mode)
 2. **Client connects** → DNS intercepts all queries → redirects to `192.168.4.1` → web page opens automatically (captive portal)
-3. **HTTP server** serves static files from SPIFFS and/or SD card, plus `/beep` action endpoint (trigger buzzer, relay, LED, or any GPIO action)
-4. **Last client disconnects** → DNS + HTTP servers stop → resources freed
+3. **HTTP server** uses a **wildcard `/*` URI handler** to serve any file from SPIFFS and/or SD card at request time — no directory scanning, no per-file URI registration, no server restart when files change
+4. **Non-VFS paths** (IoT device probes like `/agnes_home/config/query`) are **redirected to `/`** instead of returning 404, preventing rapid retries that can exhaust sockets
+5. **Custom error handlers**: 404 and 405 errors redirect to `/` — essential for captive portal on phones that send PUT/DELETE to random URIs
+6. **Last client disconnects** → DNS + HTTP servers stop → resources freed
 
 ---
 
@@ -107,6 +113,7 @@ Battery (optional):
 ```
 esp8285_webserver/
 ├── CMakeLists.txt                  # Root CMake (ESP-IDF project)
+├── CMakeLists_reference.md         # CMake command reference for ESP8266 RTOS SDK
 ├── sdkconfig.defaults              # Default menuconfig settings
 ├── partitions.csv                  # Partition table (NVS, factory, SPIFFS)
 ├── data_spiffs.bin                 # Pre-built SPIFFS image
@@ -119,21 +126,44 @@ esp8285_webserver/
 │   ├── main.c                      # Entry point, context creation
 │   ├── wifi_ap.c                   # Wi-Fi AP, channel scanning
 │   ├── dns_server.c                # DNS server (captive portal auto-redirect)
-│   ├── web_server.c                # HTTP server, MIME types, file serving
+│   ├── web_server.c                # HTTP server, wildcard URI, MIME types, file serving
 │   ├── orchestrator.c              # Server orchestrator (START/STOP/SHUTDOWN)
 │   ├── buzzer.c                    # Action trigger (GPIO output), beep_task
 │   ├── power_mgmt.c               # Battery, deep sleep, reset timer
 │   ├── storage.c                   # SPIFFS and SD mounting
 │   └── include/
-│       ├── smart_ap_common.h       # Shared definitions, prototypes
-│       └── smart_ap_config.h       # Configuration (Kconfig → #define)
-└── components/
-    └── sd_spi_driver/
-        ├── CMakeLists.txt
-        ├── Kconfig.projbuild       # SPI, CRC, SD timeout settings
-        ├── diskio_sd_spi.c         # SD SPI driver + CMD42
-        └── include/
-            └── diskio_sd_spi.h     # SD driver API
+│       ├── smart_ap_common.h       # Convenience header (includes all sub-headers)
+│       ├── smart_ap_types.h        # Enums, structs, sys_ctx_t, CTX_CHECK macros
+│       ├── smart_ap_config.h       # Kconfig values, derived constants, compile guards
+│       └── smart_ap_api.h          # Public function prototypes
+├── components/
+│   ├── esp_http_server/            # Custom HTTP server (patched from ESP-IDF)
+│   │   ├── CMakeLists.txt
+│   │   ├── Kconfig.projbuild
+│   │   ├── include/
+│   │   │   └── esp_http_server.h   # Public API (HTTP_ANY, wildcard, custom errors)
+│   │   └── src/
+│   │       ├── httpd_main.c        # Server lifecycle, task loop
+│   │       ├── httpd_uri.c         # URI dispatch (wildcard + HTTP_ANY support)
+│   │       ├── httpd_parse.c       # HTTP request parser
+│   │       ├── httpd_sess.c        # Session management
+│   │       ├── httpd_txrx.c        # Send/receive
+│   │       ├── httpd_ws.c          # WebSocket (if enabled)
+│   │       ├── esp_httpd_priv.h    # Internal structures
+│   │       ├── port/esp8266/osal.h # ESP8266 OS adaptation
+│   │       └── util/ctrl_sock.c    # Control socket for shutdown
+│   ├── fatfs/                      # FatFS with wear-levelling (patched)
+│   │   ├── CMakeLists.txt
+│   │   ├── Kconfig.projbuild
+│   │   ├── src/                    # FatFS core (ff.c, ffsystem.c, ffunicode.c)
+│   │   ├── diskio/                 # Disk I/O backends (wear-levelling, raw flash)
+│   │   └── vfs/                    # VFS integration (esp_vfs_fat.h)
+│   └── sd_spi_driver/
+│       ├── CMakeLists.txt
+│       ├── Kconfig.projbuild       # SPI, CRC, SD timeout settings
+│       ├── diskio_sd_spi.c         # SD SPI driver + CMD42
+│       └── include/
+│           └── diskio_sd_spi.h     # SD driver API
 ```
 
 ---
@@ -339,6 +369,17 @@ All modules share a single `sys_ctx_t` structure (global pointer `ctx`):
     └───────────┘          └─────────────┘
 ```
 
+### Header Architecture
+
+```
+smart_ap_common.h  ←  convenience header (includes all three)
+    ├── smart_ap_types.h    — enums, structs, sys_ctx_t, CTX_CHECK macros
+    ├── smart_ap_config.h   — Kconfig values, derived constants, compile guards
+    └── smart_ap_api.h      — public function prototypes
+```
+
+Each `.c` file includes `smart_ap_common.h` plus only the system headers it needs — no more pulling in every ESP-IDF header everywhere.
+
 ### Task Lifecycle
 
 ```
@@ -378,6 +419,69 @@ All DNS & HTTP server operations are serialized through a command queue:
 3. Wait for all tasks (timeout) ← EVT_*_DONE bits
 4. If hung → esp_restart()      ← safety net
 5. Cleanup: WiFi, events, storage, NVS, ADC
+```
+
+---
+
+## 🌐 HTTP Server (Custom Component)
+
+The project uses a **patched `esp_http_server`** component based on ESP-IDF's HTTP server, with several enhancements over the stock version:
+
+### Enhancements vs Stock ESP8266 RTOS SDK HTTP Server
+
+| Feature | Stock | This Project |
+|---------|-------|-------------|
+| URI matching | Simple `strncmp` only | **Wildcard `/*`** via `httpd_uri_match_wildcard()` |
+| Method matching | Per-method handlers only | **`HTTP_ANY`** (= `INT_MAX`) — single handler for all methods |
+| Error handling | Framework sends generic 404/405 | **`httpd_register_err_handler()`** — custom 404/405 handlers with redirect |
+| 400 Bad Request | Framework auto-sends 400, socket stays open | Custom 400 handler can force-close socket |
+| Response helpers | `httpd_resp_send_err()` only | **Inline helpers**: `httpd_resp_send_404()`, `httpd_resp_send_500()` |
+| Content types | Manual `httpd_resp_set_type()` | **Predefined macros**: `HTTPD_TYPE_JSON`, `HTTPD_TYPE_TEXT`, `HTTPD_TYPE_OCTET` |
+| `httpd_resp_send_err()` | 2 params | **3 params** — `(req, error, usr_msg)` for custom error messages |
+| Ctrl socket | Signal-based | **Semaphore-based** `ctrl_sock_semaphore` for reliable shutdown |
+| SO_LINGER | Not available | **Configurable** `enable_so_linger` / `linger_timeout` |
+| Keep-alive | Not available | **Configurable** keep-alive idle/interval/count |
+
+### Wildcard URI Handler Design
+
+Instead of scanning directories and registering a separate URI handler for each file (old approach), the server uses a **single wildcard `/*` handler** with internal routing:
+
+```
+Request arrives → wildcard_get_handler()
+    │
+    ├── Captive detect URI?  → 302 redirect to /
+    ├── Captive page (/)?    → serve index.html from captive path
+    ├── Non-VFS path?        → 302 redirect to / (prevents socket exhaustion from retries)
+    ├── Path traversal (..)? → 404 reject
+    ├── VFS path?            → try open file → serve with correct MIME type
+    │   └── Not found?       → try secondary storage (dual mode) → 404
+    └── POST /beep?          → beep_handler() → GPIO action
+```
+
+### Socket Lifecycle & Stability
+
+The HTTP server framework controls socket lifetime based on the handler's return value:
+
+| Handler returns | Framework action | Use case |
+|----------------|-----------------|----------|
+| `ESP_OK` | Socket stays open (keep-alive) | Client may send another request on same TCP connection |
+| `ESP_FAIL` | `httpd_sess_delete()` → `close(fd)` | Socket freed immediately |
+
+> ⚠️ **Important:** Setting `Connection: close` header in the response is just text — the framework does **not** interpret it. The actual socket fate is determined solely by the handler's return value.
+
+**Key stability fixes implemented:**
+
+- **405 handler drains request body** before responding — phones and IoT devices (e.g. AMAP Location SDK) send PUT/DELETE with large bodies; undrained bytes corrupt the next request on the same socket
+- **Non-VFS paths redirect instead of 404** — IoT devices probe paths like `/agnes_home/config/query` and retry aggressively on 404, which can exhaust all 12 sockets and hang the server
+- **Custom 400 error handler** — when `parse_block: incomplete` occurs (phone sends malformed request), the custom handler can force-close the socket immediately instead of leaving it open
+- **SO_LINGER disabled** — with `enable_so_linger=false`, the `close()` call returns immediately without blocking; when enabled with a timeout, `close()` could block for up to `linger_timeout` seconds, stalling the server task
+
+### Custom Error Handlers
+
+```
+404 Not Found     → 302 Found → /    (captive portal redirect)
+405 Not Allowed   → drain body → 302 Found → /  (prevent retry loops)
+400 Bad Request   → log + force close socket  (handle parse errors)
 ```
 
 ---
