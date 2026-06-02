@@ -142,9 +142,9 @@ esp8285_webserver/
 
 ### Prerequisites
 
-- [ESP8266 RTOS SDK](https://github.com/espressif/esp8266_rtos_sdk) (v3.4+ recommended)
-- Python 3.8+
-- CMake 3.5+
+- [ESP8266 RTOS SDK](https://github.com/espressif/esp8266_rtos_sdk) (v3.4 recommended)
+- Python 3.7.x
+- CMake 3.13.x
 
 ### Recommended Build Tools
 
@@ -228,9 +228,9 @@ All settings are available via `idf.py menuconfig` → **SMART AP Configuration*
 |-----------|---------|-------------|
 | SSID | `WIFI` | Access Point name |
 | Auth mode | OPEN | OPEN / WPA2_PSK / WPA_WPA2_PSK |
-| Password | `12345678` | For WPA2, 8–64 characters (ignored in OPEN mode) |
+| Password | `12345678` | For WPA2, 8–63 characters (ignored in OPEN mode) |
 | SSID hidden | 0 | 0 = visible, 1 = hidden |
-| Max connections | 4 | Max simultaneous clients (1–8) |
+| Max connections | 4 | Max simultaneous clients (1–4) |
 | Beacon interval | 250 ms | Beacon frame interval |
 | Country code | RU | Affects channels & TX power |
 

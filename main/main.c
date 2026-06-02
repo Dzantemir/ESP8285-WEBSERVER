@@ -178,6 +178,8 @@ void app_main(void)
 
     ESP_ERROR_CHECK(esp_wifi_start());
 
+    // ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(CONFIG_ESP8266_PHY_MAX_WIFI_TX_POWER * 4));
+
     if (xTaskCreate(server_orchestrator_task, "orchestrator", CONFIG_SMART_AP_ORCHESTRATOR_TASK_STACK, NULL, CONFIG_SMART_AP_ORCHESTRATOR_TASK_PRIORITY, NULL) != pdPASS)
     {
         ESP_LOGE(TAG, "FATAL: Failed to create orchestrator task! Restarting...");

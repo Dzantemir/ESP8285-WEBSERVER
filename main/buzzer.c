@@ -1,5 +1,13 @@
 // Buzzer module — buzzer GPIO control, beep task, beep HTTP handler
 // Extracted from main.c for modularity
+//
+// Adapted for the local esp_http_server component (ESP8266 RTOS SDK port).
+// Key changes from old SDK version:
+//   - HTTPD_TYPE_JSON is now defined in the component header
+//   - HTTPD_500 ("500 Internal Server Error") is now defined in the header
+//   - httpd_resp_send_500() is an inline helper calling
+//     httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, NULL)
+//   - httpd_resp_send_err() now takes 3 params (req, error, usr_msg)
 
 #include "smart_ap_common.h"
 
@@ -149,6 +157,7 @@ esp_err_t beep_handler(httpd_req_t *req)
     {
         if (is_js)
         {
+            // New component: HTTPD_TYPE_JSON is defined as "application/json"
             httpd_resp_set_type(req, HTTPD_TYPE_JSON);
             httpd_resp_send(req, "{\"status\":\"busy\"}", HTTPD_RESP_USE_STRLEN);
         }
@@ -164,6 +173,8 @@ esp_err_t beep_handler(httpd_req_t *req)
     if (xEventGroupGetBits(ctx->events) & EVT_SHUTDOWN_BIT)
     {
         xSemaphoreGive(ctx->beep_sem);
+        // New component: httpd_resp_send_500() is an inline helper that calls
+        // httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, NULL)
         httpd_resp_send_500(req);
         return ESP_OK;
     }
@@ -176,6 +187,7 @@ esp_err_t beep_handler(httpd_req_t *req)
         if (is_js)
         {
             httpd_resp_set_type(req, HTTPD_TYPE_JSON);
+            // New component: HTTPD_500 is defined as "500 Internal Server Error"
             httpd_resp_set_status(req, HTTPD_500);
             httpd_resp_send(req, "{\"status\":\"error\"}", HTTPD_RESP_USE_STRLEN);
         }

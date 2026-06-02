@@ -50,8 +50,8 @@
 #if __builtin_strlen(CONFIG_SMART_AP_WIFI_PASSWORD) < 8
 #error "WPA2/WPA password must be at least 8 characters (checked at compile time)"
 #endif
-#if __builtin_strlen(CONFIG_SMART_AP_WIFI_PASSWORD) > 64
-#error "WPA2/WPA password must be at most 64 characters (checked at compile time)"
+#if __builtin_strlen(CONFIG_SMART_AP_WIFI_PASSWORD) > 63
+#error "WPA2/WPA password must be at most 63 characters (checked at compile time)"
 #endif
 #endif
 
@@ -422,18 +422,9 @@
 #define SD_PASSWORD ""
 #endif
 
-// Total max URI handlers for httpd config
-#if STORAGE_USES_SPIFFS && STORAGE_USES_SD
-#define MAX_URI_FILES (MAX_SPIFFS_FILES + MAX_SD_FILES)
-#elif STORAGE_USES_SPIFFS
-#define MAX_URI_FILES MAX_SPIFFS_FILES
-#elif STORAGE_USES_SD
-#define MAX_URI_FILES MAX_SD_FILES
-#else
-#define MAX_URI_FILES 0
-#error "No storage mode selected — enable SPIFFS or SD in menuconfig"
-#endif
 
+// HTTPD_RESP_USE_STRLEN is now defined by the local esp_http_server component.
+// Keeping the fallback guard for safety in case of header inclusion order issues.
 #ifndef HTTPD_RESP_USE_STRLEN
 #define HTTPD_RESP_USE_STRLEN (-1)
 #endif

@@ -32,12 +32,12 @@ menu "SMART AP Configuration"
 
         config SMART_AP_WIFI_PASSWORD
             string "AP password"
-            default ""
+            default "12345678"
             depends on !SMART_AP_WIFI_AUTH_OPEN
             help
                 Password for the Wi-Fi Access Point.
                 Required when auth mode is WPA2_PSK or WPA_WPA2_PSK.
-                Length: 8-64 bytes. Must be at least 8 characters.
+                Length: 8-63 bytes. Must be at least 8 characters.
                 Ignored when auth mode is OPEN.
 
         config SMART_AP_WIFI_SSID_HIDDEN
@@ -54,11 +54,11 @@ menu "SMART AP Configuration"
 
         config SMART_AP_MAX_CONNECTIONS
             int "Max STA connections"
-            range 1 8
+            range 1 4
             default 4
             help
                 Maximum number of simultaneously connected clients.
-                ESP8266 hardware supports up to 8 STAs.
+                ESP8266 hardware supports up to 4 STAs.
 
         config SMART_AP_BEACON_INTERVAL
             int "Beacon interval (ms)"
@@ -314,13 +314,15 @@ menu "SMART AP Configuration"
         # --- SPIFFS settings ---
 
         config SMART_AP_SPIFFS_MAX_FILES
-            int "Max SPIFFS files for URI registration"
+            int "Max SPIFFS files"
             range 5 50
             default 20
             depends on SMART_AP_STORAGE_SPIFFS || SMART_AP_STORAGE_SPIFFS_SD
             help
-                Maximum number of SPIFFS files for URI registration.
-                Determines max_uri_handlers = MAX_FILES + SD_FILES + 10.
+                Maximum number of SPIFFS files available for serving.
+                Note: the web server now uses wildcard URI matching,
+                so this value no longer determines max_uri_handlers.
+                It is kept as a general file count limit for the storage module.
 
         config SMART_AP_SPIFFS_MAX_OPEN_FILES
             int "Max simultaneously open SPIFFS files"
@@ -378,13 +380,15 @@ menu "SMART AP Configuration"
                 Large files (audio, video) are served from this directory.
 
         config SMART_AP_SD_MAX_FILES
-            int "Max SD files for URI registration"
+            int "Max SD files"
             range 5 100
             default 30
             depends on SMART_AP_STORAGE_SD || SMART_AP_STORAGE_SPIFFS_SD
             help
-                Maximum number of SD card files for URI registration.
-                Determines max_uri_handlers = SPIFFS_FILES + SD_FILES + 10.
+                Maximum number of SD card files available for serving.
+                Note: the web server now uses wildcard URI matching,
+                so this value no longer determines max_uri_handlers.
+                It is kept as a general file count limit for the storage module.
 
         config SMART_AP_SD_MAX_OPEN_FILES
             int "Max simultaneously open SD files"
