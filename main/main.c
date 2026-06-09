@@ -160,7 +160,7 @@ void app_main(void)
     wifi_config_t ap_init_config = {
         .ap = {
             .ssid = ESP_WIFI_SSID,
-            .ssid_len = strlen(ESP_WIFI_SSID),
+            .ssid_len = sizeof(ESP_WIFI_SSID) - 1,
             .password = ESP_WIFI_PASSWORD,
             .max_connection = CONFIG_SMART_AP_MAX_CONNECTIONS,
             .authmode = ESP_WIFI_AUTH_MODE,

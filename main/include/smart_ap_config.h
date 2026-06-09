@@ -39,6 +39,9 @@
 #elif defined(CONFIG_SMART_AP_WIFI_AUTH_WPA_WPA2_PSK)
 #define ESP_WIFI_AUTH_MODE WIFI_AUTH_WPA_WPA2_PSK
 #define ESP_WIFI_PASSWORD CONFIG_SMART_AP_WIFI_PASSWORD
+#elif defined(CONFIG_SMART_AP_WIFI_AUTH_WPA_PSK)
+#define ESP_WIFI_AUTH_MODE WIFI_AUTH_WPA_PSK
+#define ESP_WIFI_PASSWORD CONFIG_SMART_AP_WIFI_PASSWORD
 #else
 // Default: OPEN (no password)
 #define ESP_WIFI_AUTH_MODE WIFI_AUTH_OPEN
@@ -46,13 +49,11 @@
 #endif
 
 // Bug #17 fix: compile-time WPA password length check (min AND max)
-#if (defined(CONFIG_SMART_AP_WIFI_AUTH_WPA2_PSK) || defined(CONFIG_SMART_AP_WIFI_AUTH_WPA_WPA2_PSK))
-#if __builtin_strlen(CONFIG_SMART_AP_WIFI_PASSWORD) < 8
-#error "WPA2/WPA password must be at least 8 characters (checked at compile time)"
-#endif
-#if __builtin_strlen(CONFIG_SMART_AP_WIFI_PASSWORD) > 63
-#error "WPA2/WPA password must be at most 63 characters (checked at compile time)"
-#endif
+#if (defined(CONFIG_SMART_AP_WIFI_AUTH_WPA2_PSK) || defined(CONFIG_SMART_AP_WIFI_AUTH_WPA_WPA2_PSK) || defined(CONFIG_SMART_AP_WIFI_AUTH_WPA_PSK))
+_Static_assert(sizeof(CONFIG_SMART_AP_WIFI_PASSWORD) - 1 >= 8,
+    "WPA2/WPA password must be at least 8 characters");
+_Static_assert(sizeof(CONFIG_SMART_AP_WIFI_PASSWORD) - 1 <= 63,
+    "WPA2/WPA password must be at most 63 characters");
 #endif
 
 // Derived: SSID and SSID hidden — part of the ESP_WIFI_* API group
@@ -153,6 +154,10 @@
 
 #ifndef CONFIG_SMART_AP_DNS_RX_BUFFER_SIZE
 #define CONFIG_SMART_AP_DNS_RX_BUFFER_SIZE 1024
+#endif
+
+#ifndef CONFIG_SMART_AP_DNS_BACKOFF_MAX_SEC
+#define CONFIG_SMART_AP_DNS_BACKOFF_MAX_SEC 30
 #endif
 
 // --- HTTP Server ---

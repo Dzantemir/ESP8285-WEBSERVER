@@ -24,6 +24,10 @@ menu "SMART AP Configuration"
 
             config SMART_AP_WIFI_AUTH_OPEN
                 bool "OPEN (no password)"
+
+
+            config SMART_AP_WIFI_AUTH_WPA_PSK
+                bool "WPA_PSK"
             config SMART_AP_WIFI_AUTH_WPA2_PSK
                 bool "WPA2_PSK"
             config SMART_AP_WIFI_AUTH_WPA_WPA2_PSK
@@ -230,6 +234,17 @@ menu "SMART AP Configuration"
             help
                 DNS packet receive buffer size.
                 512 bytes is the RFC 1035 minimum. 1024 adds margin for EDNS.
+
+        config SMART_AP_DNS_BACKOFF_MAX_SEC
+            int "DNS restart backoff max delay (seconds)"
+            range 5 300
+            default 30
+            help
+                Maximum delay before restarting DNS after an error.
+                Uses exponential backoff with jitter:
+                1s, 2s, 4s, 8s, 16s, 30s, 30s, ...
+                Prevents CPU and heap thrashing when DNS crashes in a loop.
+                Reset to zero on fresh client connection (SERVER_CMD_START).
 
     endmenu
 
@@ -590,7 +605,7 @@ menu "SMART AP Configuration"
 
         config SMART_AP_AP_TASK_STACK
             int "AP task stack size (bytes)"
-            range 1024 8192
+            range 512 8192
             default 2048
             help
                 Stack size for smart_ap_task (main AP task).

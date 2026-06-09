@@ -1,6 +1,12 @@
 // DNS server module — DNS task, start/stop functions
 // Called ONLY from orchestrator — no race conditions between tasks.
 // Uses EventGroup (dns_running, dns_stopped), Mutex (dns_socket, dns_task)
+//
+// Socket ownership: stop_dns_server() is the SINGLE owner of close().
+// The DNS task does NOT close the socket — it only signals completion
+// via EVT_DNS_STOPPED_BIT. This avoids double-close and guarantees
+// that the socket fd is always released, even if the task crashes
+// before reaching dns_cleanup (in which case the timeout path closes it).
 
 #include "smart_ap_common.h"
 
@@ -88,11 +94,20 @@ void stop_dns_server(void)
 
     if (!(dns_bits & EVT_DNS_STOPPED_BIT))
     {
+        // Task hung — close socket before restart (defensive, restart would
+        // clean up anyway, but explicit close is better practice)
+        if (sock != -1)
+            close(sock);
         ESP_LOGE(TAG, "FATAL: DNS task hung (%d sec timeout)! Network stack unresponsive, forcing restart.", CONFIG_SMART_AP_DNS_STOP_TIMEOUT_SEC);
         esp_restart();
     }
     else
     {
+        // Task completed — it did NOT close the socket (see dns_cleanup).
+        // We are the single owner of close(). This prevents double-close
+        // and guarantees the fd is released even if the task crashed.
+        if (sock != -1)
+            close(sock);
         xSemaphoreTake(ctx->state_mtx, portMAX_DELAY);
         ctx->dns_task = NULL;
         xSemaphoreGive(ctx->state_mtx);
@@ -386,14 +401,11 @@ void dns_server_task(void *pvParameters)
 
     ESP_LOGI(TAG, "DNS Server shutting down");
 dns_cleanup:;
-    xSemaphoreTake(ctx->state_mtx, portMAX_DELAY);
-    ctx->dns_socket = -1;
-    xSemaphoreGive(ctx->state_mtx);
-
-    if (sock != -1)
-    {
-        close(sock);
-    }
+    // NOTE: We do NOT close(sock) here and do NOT clear ctx->dns_socket.
+    // Socket closure is the sole responsibility of stop_dns_server(),
+    // which calls close() after receiving EVT_DNS_STOPPED_BIT.
+    // This prevents double-close and guarantees fd release even if
+    // this task crashes before reaching dns_cleanup.
 
     xEventGroupSetBits(ctx->events, EVT_DNS_STOPPED_BIT);
 

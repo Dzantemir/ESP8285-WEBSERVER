@@ -12,6 +12,7 @@
 
 #include "esp_log.h"
 #include "esp_wifi.h"
+#include "esp_system.h"
 
 void server_orchestrator_task(void *pvParameters)
 {
@@ -20,6 +21,7 @@ void server_orchestrator_task(void *pvParameters)
     ESP_LOGI(TAG, "Server orchestrator task started");
 
     server_cmd_msg_t msg;
+    int dns_error_count = 0;
 
     while (1)
     {
@@ -53,6 +55,7 @@ void server_orchestrator_task(void *pvParameters)
             start_dns_server();
             start_webserver();
             xEventGroupSetBits(ctx->events, EVT_SERVERS_RUNNING_BIT);
+            dns_error_count = 0; // Reset backoff — fresh connection, clean slate
             ESP_LOGI(TAG, "Orchestrator: servers STARTED (heap free: %u, min: %u)",
                      (unsigned)esp_get_free_heap_size(),
                      (unsigned)esp_get_minimum_free_heap_size());
@@ -65,7 +68,13 @@ void server_orchestrator_task(void *pvParameters)
                 // where a new client connects between the STADISCONNECTED
                 // event and this STOP being processed.
                 wifi_sta_list_t sta_list;
-                if (esp_wifi_ap_get_sta_list(&sta_list) == ESP_OK && sta_list.num > 0)
+                esp_err_t ret = esp_wifi_ap_get_sta_list(&sta_list);
+                if (ret != ESP_OK)
+                {
+                    ESP_LOGE(TAG, "Orchestrator: STOP — sta_list failed (0x%x), skipping to be safe", ret);
+                    break;
+                }
+                if (sta_list.num > 0)
                 {
                     ESP_LOGI(TAG, "Orchestrator: STOP skipped — %d client(s) still connected", sta_list.num);
                     break;
@@ -88,10 +97,26 @@ void server_orchestrator_task(void *pvParameters)
         case SERVER_CMD_DNS_ERROR:
             if (xEventGroupGetBits(ctx->events) & EVT_DNS_RUNNING_BIT)
             {
-                ESP_LOGW(TAG, "Orchestrator: DNS task exited with error, restarting DNS...");
+                dns_error_count++;
+
+                // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s, 30s, ...
+                // Prevents CPU/heap thrashing in crash-loop scenarios.
+                uint32_t delay_sec = 1U << (dns_error_count - 1);
+                if (delay_sec > CONFIG_SMART_AP_DNS_BACKOFF_MAX_SEC)
+                    delay_sec = CONFIG_SMART_AP_DNS_BACKOFF_MAX_SEC;
+
+                // Jitter: 0..500ms random offset to avoid thundering herd
+                // if multiple devices restart DNS simultaneously
+                uint32_t jitter_ms = esp_random() % 500;
+
+                ESP_LOGW(TAG, "Orchestrator: DNS error #%d, restarting in %us (+%ums)...",
+                         dns_error_count, delay_sec, jitter_ms);
+
                 stop_dns_server();
+                vTaskDelay(pdSEC_TO_TICKS(delay_sec) + pdMS_TO_TICKS(jitter_ms));
                 start_dns_server();
-                ESP_LOGI(TAG, "Orchestrator: DNS RESTARTED after error (web server untouched)");
+
+                ESP_LOGI(TAG, "Orchestrator: DNS RESTARTED after error (attempt #%d)", dns_error_count);
             }
             else
             {

@@ -164,27 +164,6 @@ static const char *get_mime_type(const char *filepath)
 // ============================================================================
 
 /**
- * @brief Drain (read and discard) remaining request body from socket.
- *
- * Must be called BEFORE sending the response. Prevents leftover body
- * bytes from corrupting the next HTTP request on the same socket.
- * Safe to call even if content_len == 0 (loop won't execute).
- */
-static void drain_req_body(httpd_req_t *req)
-{
-    int remaining = req->content_len;
-    char discard[256];
-    while (remaining > 0)
-    {
-        int to_read = remaining > (int)sizeof(discard) ? (int)sizeof(discard) : remaining;
-        int received = httpd_req_recv(req, discard, to_read);
-        if (received <= 0)
-            break;  // error or no more data
-        remaining -= received;
-    }
-}
-
-/**
  * @brief Send 302 redirect to / with Connection: close, then force socket closure.
  *
  * Used for captive portal redirects and "go away" responses.
@@ -311,16 +290,17 @@ static esp_err_t main_handler(httpd_req_t *req)
 
     // ================================================================
     // 3. Non-GET methods (POST without /beep, PUT, DELETE, PATCH...)
-    //    → drain body + 302 close
+    //    → 302 close (skip drain)
     //    Phones send background POST/PUT/DELETE to random URIs.
-    //    Drain the body to prevent socket buffer corruption, then
-    //    send them packing with 302 + Connection: close.
+    //    We send 302 + return ESP_FAIL → socket closed → kernel discards
+    //    unread body bytes automatically. No need to drain — drain is
+    //    only needed for keep-alive (ESP_OK), where leftover body would
+    //    corrupt the next request on the same socket.
     // ================================================================
     if (req->method != HTTP_GET)
     {
-        ESP_LOGI(TAG, "%s %s → drain + 302 (body %d bytes)",
+        ESP_LOGI(TAG, "%s %s → 302 (body %d bytes, skip drain)",
                  http_method_str(req->method), req->uri, req->content_len);
-        drain_req_body(req);
         return send_302_close(req);
     }
 
@@ -532,7 +512,8 @@ static esp_err_t custom_405_handler(httpd_req_t *req, httpd_err_code_t err)
 {
     ESP_LOGW(TAG, "405 fallback (should not happen): %s %s (body %d bytes)",
              http_method_str(req->method), req->uri, req->content_len);
-    drain_req_body(req);
+    // No drain needed — send_302_close returns ESP_FAIL → socket closed
+    // → kernel discards unread body automatically
     return send_302_close(req);
 }
 

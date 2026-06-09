@@ -33,6 +33,8 @@ void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id
     {
         // Вызов esp_wifi_set_protocol() из event handler запрещён —
         // вызывает внутренний stop/start WiFi и повреждение heap.
+        //  ESP_ERROR_CHECK(esp_wifi_set_inactive_time(ESP_IF_WIFI_AP, 300));
+        // ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
         ESP_ERROR_CHECK(esp_wifi_set_protocol(ESP_IF_WIFI_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N));
 
         ESP_LOGI(TAG, "AP started");
@@ -75,6 +77,8 @@ void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id
     else if (event_id == WIFI_EVENT_STA_START)
     {
         // Протокол STA (802.11 b/g/n). STA используется только для сканирования.
+        //  ESP_ERROR_CHECK(esp_wifi_set_inactive_time(ESP_IF_WIFI_STA, 6));
+        // ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
         ESP_ERROR_CHECK(esp_wifi_set_protocol(ESP_IF_WIFI_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N));
 
         ESP_LOGD(TAG, "STA started");
