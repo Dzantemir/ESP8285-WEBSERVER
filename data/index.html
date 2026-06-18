@@ -169,6 +169,7 @@
             b.className = 'btn btn-busy'; b.textContent = '⏳ Сигнал...'; m.className = 'msg';
             fetch('/beep',{method:'POST',headers:{'X-Requested-With':'fetch'}}).then(function (r) { return r.json() }).then(function (j) {
                 if (j.status === 'started') { m.textContent = '✅ Пищит 45 сек!'; m.className = 'msg msg-ok' }
+                else if (j.status === 'error') { m.textContent = '❌ Ошибка'; m.className = 'msg msg-err' }
                 else { m.textContent = '⚠️ Уже пищит'; m.className = 'msg msg-busy' }
                 b.textContent = '🔊 Найти брелок'; b.className = 'btn'; setTimeout(function () { m.textContent = ''; m.className = 'msg' }, 5000)
             }).catch(function () { m.textContent = '❌ Ошибка'; m.className = 'msg msg-err'; b.textContent = '🔊 Найти брелок'; b.className = 'btn'; setTimeout(function () { m.textContent = ''; m.className = 'msg' }, 5000) })

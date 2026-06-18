@@ -31,8 +31,7 @@ void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id
 
     if (event_id == WIFI_EVENT_AP_START)
     {
-        // Вызов esp_wifi_set_protocol() из event handler запрещён —
-        // вызывает внутренний stop/start WiFi и повреждение heap.
+       
         //  ESP_ERROR_CHECK(esp_wifi_set_inactive_time(ESP_IF_WIFI_AP, 300));
         // ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
         ESP_ERROR_CHECK(esp_wifi_set_protocol(ESP_IF_WIFI_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N));

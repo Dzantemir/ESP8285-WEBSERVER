@@ -85,6 +85,18 @@ esp_err_t storage_init(void)
         const char *pwd = CONFIG_SMART_AP_SD_PASSWORD;
         uint8_t pwd_len = (uint8_t)strlen(pwd);
 
+        // Fix: validate password length against SD specification limit.
+        // SD_PWD_MAX_LEN is 16 bytes (defined in diskio_sd_spi.h).
+        // Without this check, sd_spi_unlock() returns ESP_ERR_INVALID_ARG
+        // and logs a misleading "wrong password?" message when the password
+        // is actually just too long. We skip the unlock attempt instead.
+        if (pwd_len > SD_PWD_MAX_LEN)
+        {
+            ESP_LOGE(TAG, "SD card password too long (%u bytes, max %d) — ignoring password",
+                     (unsigned)pwd_len, SD_PWD_MAX_LEN);
+            pwd_len = 0;
+        }
+
         sd_spi_config_t sd_config = {
             .cs_io_num = CONFIG_SMART_AP_SD_CS_GPIO,
             .password = (pwd_len > 0) ? pwd : NULL,

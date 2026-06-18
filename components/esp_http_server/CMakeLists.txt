@@ -2,5 +2,6 @@ idf_component_register(
     SRCS "src/httpd_main.c" "src/httpd_parse.c" "src/httpd_sess.c" "src/httpd_txrx.c" "src/httpd_uri.c" "src/httpd_ws.c" "src/util/ctrl_sock.c"
     INCLUDE_DIRS include
     PRIV_INCLUDE_DIRS src/util src/port/esp8266
-    REQUIRES http_parser esp_event lwip mbedtls
+    REQUIRES http_parser
+    PRIV_REQUIRES mbedtls
 )

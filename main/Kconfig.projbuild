@@ -270,11 +270,16 @@ menu "SMART AP Configuration"
 
         config SMART_AP_HTTPD_MAX_OPEN_SOCKETS
             int "Max open sockets"
-            range 1 16
+            range 1 13
             default 12
             help
                 Maximum simultaneously open sockets for HTTP server.
                 Limited by LwIP resources on ESP8266. More = more RAM.
+
+                Upper bound is 13: LwIP allows CONFIG_LWIP_MAX_SOCKETS=16,
+                and the HTTP server reserves 3 sockets internally (listen,
+                ctrl-recv, ctrl-send). Values > 13 cause httpd_start() to
+                fail with ESP_ERR_INVALID_ARG at runtime.
 
         config SMART_AP_HTTPD_SCRATCH_BUFSIZE
             int "Scratch buffer size (bytes)"

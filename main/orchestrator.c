@@ -101,7 +101,15 @@ void server_orchestrator_task(void *pvParameters)
 
                 // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s, 30s, ...
                 // Prevents CPU/heap thrashing in crash-loop scenarios.
-                uint32_t delay_sec = 1U << (dns_error_count - 1);
+                // Fix: cap shift at 31 to avoid UB — `1U << 32` is undefined
+                // behavior for uint32_t (shift count >= type width). Without
+                // the cap, after 32 consecutive DNS errors the shift would
+                // be UB; on most architectures it wraps to 1, masking the
+                // intended backoff. The cap keeps semantics correct and safe.
+                uint32_t shift = (dns_error_count - 1);
+                if (shift > 31)
+                    shift = 31;
+                uint32_t delay_sec = 1U << shift;
                 if (delay_sec > CONFIG_SMART_AP_DNS_BACKOFF_MAX_SEC)
                     delay_sec = CONFIG_SMART_AP_DNS_BACKOFF_MAX_SEC;
 

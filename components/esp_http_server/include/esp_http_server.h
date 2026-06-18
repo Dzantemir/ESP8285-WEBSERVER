@@ -23,9 +23,9 @@ extern "C" {
 
 #define ESP_HTTPD_DEF_CTRL_PORT         (32768)    /*!< HTTP Server control socket port*/
 
-#if CONFIG_HTTPD_ENABLE_EVENTS || __DOXYGEN_
+#if CONFIG_HTTPD_ENABLE_EVENTS || __DOXYGEN__
 ESP_EVENT_DECLARE_BASE(ESP_HTTP_SERVER_EVENT);
-#endif // CONFIG_HTTPD_ENABLE_EVENTS || __DOXYGEN_
+#endif // CONFIG_HTTPD_ENABLE_EVENTS || __DOXYGEN__
 
 /**
  * @brief   HTTP Server events id

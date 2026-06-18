@@ -108,9 +108,11 @@ _Static_assert(sizeof(CONFIG_SMART_AP_WIFI_PASSWORD) - 1 <= 63,
 #define CONFIG_SMART_AP_SCAN_INTERVAL_MAX_HOUR 21
 #endif
 
-// Bug #15 fix: compile-time guard — MIN must be < MAX (strict, not just <=)
-// When MIN == MAX, the modulo expression becomes % 1 which is always 0,
-// and the random interval has zero range — semantically wrong.
+// Bug #15 fix: compile-time guard — MIN must be <= MAX.
+// MIN == MAX is intentionally allowed: the runtime code in
+// wifi_ap.c (smart_ap_task) detects this and uses the exact value
+// without randomization (the modulo range would be zero).
+// Only MIN > MAX is a configuration error.
 #if CONFIG_SMART_AP_SCAN_INTERVAL_MIN_HOUR > CONFIG_SMART_AP_SCAN_INTERVAL_MAX_HOUR
 #error "SCAN_INTERVAL_MIN_HOUR must be <= SCAN_INTERVAL_MAX_HOUR"
 #endif
@@ -266,7 +268,10 @@ _Static_assert(sizeof(CONFIG_SMART_AP_WIFI_PASSWORD) - 1 <= 63,
 #define CONFIG_SMART_AP_RESET_TIME_DAY_MAX 31
 #endif
 
-// Bug #15 fix: compile-time guard — MIN must be < MAX (strict, not just <=)
+// Bug #15 fix: compile-time guard — MIN must be <= MAX.
+// MIN == MAX is intentionally allowed: the runtime code in
+// power_mgmt.c (reset_timer_task) detects this and uses the exact
+// value without randomization. Only MIN > MAX is a config error.
 #if CONFIG_SMART_AP_RESET_TIME_DAY_MIN > CONFIG_SMART_AP_RESET_TIME_DAY_MAX
 #error "RESET_TIME_DAY_MIN must be <= RESET_TIME_DAY_MAX"
 #endif

@@ -1,13 +1,5 @@
-
-idf_component_register(SRCS
-        "diskio/diskio.c"
-         "diskio/diskio_rawflash.c"
-         "diskio/diskio_wl.c"
-         "src/ff.c"
-         "src/ffsystem.c"
-         "src/ffunicode.c"
-         "vfs/vfs_fat.c"
-         "vfs/vfs_fat_spiflash.c"
-                       INCLUDE_DIRS diskio vfs src
-                       REQUIRES wear_levelling
-                      )
+idf_component_register(
+    SRCS "diskio/diskio.c" "diskio/diskio_rawflash.c" "diskio/diskio_wl.c" "src/ff.c" "src/ffsystem.c" "src/ffunicode.c" "vfs/vfs_fat.c" "vfs/vfs_fat_spiflash.c"
+    INCLUDE_DIRS diskio vfs src
+    REQUIRES wear_levelling
+)
