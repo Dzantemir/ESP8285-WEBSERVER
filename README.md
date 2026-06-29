@@ -108,6 +108,12 @@ Battery (optional):
 
 ---
 
+## 📸 Social Preview
+
+![ESP8266 WiFi Microphone](social_preview.jpg)
+
+---
+
 ## 📁 Project Structure
 
 ```
